@@ -426,8 +426,10 @@
         });
     </script>
 </head>
-<!-- A URL da imagem de fundo foi atualizada para o link do GitHub fornecido. -->
-<body class="font-sans flex items-center justify-center relative bg-black text-white" style="background-image: url('https://raw.githubusercontent.com/yangzigfrid/Sistema-de-Registro-de-Faltas/main/No%20Pain%20No%20Gain%20Wallpaper%20-%20iXpap.jpg'); background-size: cover; background-position: center; background-attachment: fixed; min-height: 100vh;">
+<body class="font-sans flex items-center justify-center relative bg-black text-white" style="background-image: url('https://raw.githubusercontent.com/yangzigfrid/Sistema-de-Registro-de-Faltas/main/No%20Pain%20No%20Gain%20Wallpaper%20-%20iXpap.jpg'); background-size: cover; background-repeat: no-repeat; background-position: center center; min-height: 100vh;">
+
+    <!-- Camada de sobreposição para a imagem de fundo -->
+    <div class="fixed inset-0 bg-black opacity-50 z-0"></div>
 
     <!-- Modal de Visualização da Imagem -->
     <div id="image-modal" class="fixed inset-0 bg-gray-900 bg-opacity-90 overflow-y-auto h-full w-full flex items-center justify-center z-50" style="display: none;">
@@ -456,7 +458,7 @@
     </div>
 
 
-    <div class="w-full max-w-3xl p-4 sm:p-8">
+    <div class="relative z-10 w-full max-w-3xl p-4 sm:p-8">
 
         <!-- Cabeçalho -->
         <header class="text-center mb-8">
