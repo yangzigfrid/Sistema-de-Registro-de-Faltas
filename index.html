@@ -3,9 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Registro de Faltas</title>
+    <title>Registro de Faltas</title>
     <!-- Incluindo o Tailwind CSS para um design moderno e responsivo -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- CSS personalizado para a animação de pulsação -->
+    <style>
+        @keyframes pulse-slow {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.03);
+                opacity: 0.9;
+            }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s infinite ease-in-out;
+        }
+    </style>
     <!-- Incluindo as bibliotecas do Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -434,8 +450,8 @@
 
         <!-- Cabeçalho -->
         <header class="text-center mb-8 text-white">
-            <h1 class="text-3xl sm:text-4xl font-bold mb-2">
-                Sistema de Registro de Faltas
+            <h1 class="text-3xl sm:text-4xl font-bold mb-2 animate-pulse-slow">
+                📊 Registro de Faltas
             </h1>
         </header>
 
