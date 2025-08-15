@@ -12,10 +12,19 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURAÇÃO DO FIREBASE (Usando variáveis de ambiente)
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // AQUI ESTÁ A CORREÇÃO: Usando um bloco try/catch para garantir que a aplicação não falhe se as
+        // variáveis de ambiente não estiverem disponíveis.
+        let firebaseConfig = {};
+        let initialAuthToken = null;
+        let appId = null;
+
+        try {
+            firebaseConfig = JSON.parse(__firebase_config);
+            initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        } catch (e) {
+            console.error("Erro ao carregar as variáveis de ambiente do Firebase:", e);
+        }
         
         // Inicialização do Firebase
         let app = null;
@@ -24,45 +33,56 @@
         let userId = null;
         let unsubscribe = null;
 
-        try {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            
-            // Autenticação com token personalizado ou de forma anônima
-            async function authenticate() {
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
+        if (Object.keys(firebaseConfig).length > 0) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                // Autenticação com token personalizado ou de forma anônima
+                async function authenticate() {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                            console.log("Autenticado com token personalizado.");
+                        } else {
+                            await signInAnonymously(auth);
+                            console.log("Autenticado anonimamente.");
+                        }
+                    } catch (error) {
+                        console.error("Erro na autenticação:", error);
+                        document.getElementById('error-message').textContent = "Erro de autenticação. O sistema pode não funcionar.";
+                        document.getElementById('error-message').style.display = 'block';
                     }
-                } catch (error) {
-                    console.error("Erro na autenticação:", error);
-                    document.getElementById('error-message').textContent = "Erro de autenticação. O sistema pode não funcionar.";
-                    document.getElementById('error-message').style.display = 'block';
                 }
+
+                // Monitora o estado de autenticação
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('user-id').textContent = userId;
+                        console.log("ID do usuário obtido:", userId);
+                        startDataListener();
+                    } else {
+                        document.getElementById('user-id').textContent = "Não autenticado";
+                        console.log("Usuário não autenticado.");
+                    }
+                });
+
+                // Chama a função de autenticação
+                authenticate();
+
+            } catch (e) {
+                console.error("Erro na inicialização do Firebase:", e);
+                document.getElementById('error-message').textContent = "Erro ao iniciar o Firebase. Verifique sua conexão ou configuração.";
+                document.getElementById('error-message').style.display = 'block';
             }
-
-            // Monitora o estado de autenticação
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    userId = user.uid;
-                    document.getElementById('user-id').textContent = userId;
-                    startDataListener();
-                } else {
-                    document.getElementById('user-id').textContent = "Não autenticado";
-                }
-            });
-
-            // Chama a função de autenticação
-            authenticate();
-
-        } catch (e) {
-            console.error("Erro na inicialização do Firebase:", e);
-            document.getElementById('error-message').textContent = "Erro ao iniciar o Firebase. Verifique sua conexão ou configuração.";
-            document.getElementById('error-message').style.display = 'block';
+        } else {
+             document.getElementById('error-message').textContent = "Erro: Configuração do Firebase não encontrada. Por favor, recarregue a página.";
+             document.getElementById('error-message').style.display = 'block';
+             console.error("Firebase não inicializado: firebaseConfig está vazio.");
         }
+
 
         // Função para converter data
         function formatDate(dateStr) {
@@ -81,10 +101,16 @@
                 return;
             }
             
-            const absencesRef = collection(db, `users/${userId}/absences`);
+            const collectionPath = `users/${userId}/absences`;
+            console.log("Tentando acessar a coleção:", collectionPath);
+            const absencesRef = collection(db, collectionPath);
             const q = query(absencesRef);
 
+            // Este é o principal "ouvinte" de dados. Ele se conecta ao Firebase e é executado
+            // toda vez que os dados são alterados, adicionados ou removidos.
+            // Se este trecho de código falhar, a soma e o histórico não serão atualizados.
             unsubscribe = onSnapshot(q, (snapshot) => {
+                console.log("Dados recebidos com sucesso.");
                 let currentTotal = 0;
                 const newHistory = [];
                 snapshot.forEach((doc) => {
@@ -98,6 +124,7 @@
                 });
                 updateUI(currentTotal, newHistory);
             }, (error) => {
+                // O erro "Missing or insufficient permissions" acontece aqui
                 console.error("Erro ao buscar dados:", error);
                 document.getElementById('error-message').textContent = "Erro ao carregar os dados. Tente novamente.";
                 document.getElementById('error-message').style.display = 'block';
@@ -106,7 +133,9 @@
 
         // Função para atualizar a interface
         function updateUI(total, history) {
+            // Esta função atualiza o total na tela
             document.getElementById('total-value').textContent = total.toFixed(2).replace('.', ',');
+            
             const historyTableBody = document.getElementById('history-table-body');
             historyTableBody.innerHTML = '';
             
@@ -167,14 +196,17 @@
                     createdAt: serverTimestamp(),
                 };
 
+                // Aqui o aplicativo tenta salvar os dados no Firestore.
                 const absencesCollection = collection(db, `users/${userId}/absences`);
                 await addDoc(absencesCollection, newAbsence);
+                console.log("Falta registrada com sucesso.");
 
                 // Limpa o formulário
                 document.getElementById('name').value = '';
                 document.getElementById('date').value = '';
                 document.getElementById('proofLink').value = '';
             } catch (error) {
+                // Se a regra de segurança não permitir a escrita, este erro será exibido
                 console.error("Erro ao registrar a falta:", error);
                 document.getElementById('error-message').textContent = "Erro ao registrar a falta. Verifique sua conexão.";
                 document.getElementById('error-message').style.display = 'block';
