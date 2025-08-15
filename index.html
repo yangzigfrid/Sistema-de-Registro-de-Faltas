@@ -34,11 +34,11 @@
         let app = null;
         let auth = null;
         let db = null;
-        let userId = null;
-        let unsubscribe = null;
         
         // Senha de administração hardcoded para demonstração
         const ADMIN_PASSWORD = "335176++";
+        // Caminho da coleção pública para compartilhamento de dados
+        const PUBLIC_COLLECTION_PATH = `artifacts/${appId}/public/data/absences`;
 
         if (Object.keys(firebaseConfig).length > 0) {
             try {
@@ -59,13 +59,10 @@
 
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
-                        userId = user.uid;
-                        document.getElementById('user-id').textContent = userId;
-                        console.log("Usuário autenticado. ID:", userId);
+                        console.log("Usuário autenticado. ID:", user.uid);
                         console.log("ID da Aplicação:", appId);
                         startDataListener();
                     } else {
-                        document.getElementById('user-id').textContent = "Não autenticado";
                         console.log("Usuário não autenticado.");
                     }
                 });
@@ -92,21 +89,20 @@
         
         // Sincronização de dados em tempo real
         function startDataListener() {
+            let unsubscribe = null;
             if (unsubscribe) {
                 unsubscribe();
             }
-            if (!db || !userId) {
-                console.error("Database ou User ID não disponível.");
+            if (!db) {
+                console.error("Database não disponível.");
                 return;
             }
             
-            const collectionPath = `users/${userId}/data/${appId}/absences`;
-            console.log("Tentando acessar a coleção:", collectionPath);
-            const absencesRef = collection(db, collectionPath);
+            const absencesRef = collection(db, PUBLIC_COLLECTION_PATH);
             const q = query(absencesRef);
 
             unsubscribe = onSnapshot(q, (snapshot) => {
-                console.log("Dados recebidos com sucesso.");
+                console.log("Dados recebidos com sucesso da coleção pública.");
                 let currentTotal = 0;
                 const newHistory = [];
                 // Objeto para armazenar o resumo por pessoa
@@ -217,7 +213,7 @@
                 return;
             }
 
-            if (!db || !userId) {
+            if (!db) {
                 document.getElementById('error-message').textContent = "Erro no banco de dados. Tente recarregar a página.";
                 document.getElementById('error-message').style.display = 'block';
                 return;
@@ -232,7 +228,7 @@
                     createdAt: serverTimestamp(),
                 };
 
-                const absencesCollection = collection(db, `users/${userId}/data/${appId}/absences`);
+                const absencesCollection = collection(db, PUBLIC_COLLECTION_PATH);
                 await addDoc(absencesCollection, newAbsence);
                 console.log("Falta registrada com sucesso.");
 
@@ -267,15 +263,14 @@
             passwordError.style.display = 'none';
             hideConfirmationModal();
 
-            if (!db || !userId) {
+            if (!db) {
                 document.getElementById('error-message').textContent = "Erro no banco de dados. Tente recarregar a página.";
                 document.getElementById('error-message').style.display = 'block';
                 return;
             }
 
             try {
-                const collectionPath = `users/${userId}/data/${appId}/absences`;
-                const absencesRef = collection(db, collectionPath);
+                const absencesRef = collection(db, PUBLIC_COLLECTION_PATH);
                 const querySnapshot = await getDocs(absencesRef);
                 
                 const deletePromises = [];
@@ -347,7 +342,6 @@
             <h1 class="text-3xl sm:text-4xl font-bold mb-2">
                 Sistema de Registro de Faltas
             </h1>
-            <p class="text-sm text-gray-300">Seu ID de Usuário: <span id="user-id">Carregando...</span></p>
         </header>
 
         <!-- Mensagem de Atenção -->
