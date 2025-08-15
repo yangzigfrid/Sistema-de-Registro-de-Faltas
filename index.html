@@ -9,54 +9,74 @@
     <!-- Incluindo as bibliotecas do Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Variáveis globais para Firebase (serão preenchidas pelo Canvas)
-        let __app_id = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
-        let __firebase_config = typeof window.__firebase_config !== 'undefined' ? window.__firebase_config : '{}';
-        let __initial_auth_token = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : null;
+        // CONFIGURAÇÃO DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBPEKtr1KM96N3MQi1IKCOTIjVltQ3t_8s",
+            authDomain: "sistema-de-registro-de-faltas.firebaseapp.com",
+            projectId: "sistema-de-registro-de-faltas",
+            storageBucket: "sistema-de-registro-de-faltas.firebasestorage.app",
+            messagingSenderId: "959428862131",
+            appId: "1:959428862131:web:1435601cc3e46b5d0b10c6",
+            measurementId: "G-6GB6ZJDDYB"
+        };
+        
+        // Inicialização do Firebase
+        let app = null;
+        let auth = null;
+        let db = null;
+        let userId = null;
+        let unsubscribe = null;
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig, 'absence-system-' + __app_id);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        try {
+            app = initializeApp(firebaseConfig, 'absence-system');
+            auth = getAuth(app);
+            db = getFirestore(app);
+            
+            // Autenticação anônima para permitir o uso imediato
+            signInAnonymously(auth).catch((error) => {
+                console.error("Erro na autenticação anônima:", error);
+                document.getElementById('error-message').textContent = "Erro de autenticação. O sistema pode não funcionar.";
+                document.getElementById('error-message').style.display = 'block';
+            });
+
+            // Monitora o estado de autenticação
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-id').textContent = userId;
+                    startDataListener();
+                } else {
+                    document.getElementById('user-id').textContent = "Não autenticado";
+                }
+            });
+        } catch (e) {
+            console.error("Erro na inicialização do Firebase:", e);
+            document.getElementById('error-message').textContent = "Erro ao iniciar o Firebase. Verifique sua conexão ou configuração.";
+            document.getElementById('error-message').style.display = 'block';
+        }
 
         // Função para converter data
         function formatDate(dateStr) {
+            if (!dateStr) return '';
             const [year, month, day] = dateStr.split('-');
             return `${day}/${month}/${year}`;
         }
         
-        // Autenticação e sincronização de dados
-        let userId = null;
-        let unsubscribe = null;
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                document.getElementById('user-id').textContent = userId;
-                startDataListener();
-            } else {
-                try {
-                    if (__initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (error) {
-                    console.error("Erro ao autenticar:", error);
-                }
-            }
-        });
-
+        // Sincronização de dados em tempo real
         function startDataListener() {
             if (unsubscribe) {
                 unsubscribe();
             }
+            if (!db || !userId) {
+                console.error("Database ou User ID não disponível.");
+                return;
+            }
 
-            const collectionPath = `artifacts/${__app_id}/users/${userId}/absences`;
-            const absencesRef = collection(db, collectionPath);
+            // O caminho do Firestore foi alterado para corresponder às novas regras de segurança
+            const absencesRef = collection(db, `users/${userId}/absences`);
             const q = query(absencesRef);
 
             unsubscribe = onSnapshot(q, (snapshot) => {
@@ -75,6 +95,7 @@
             }, (error) => {
                 console.error("Erro ao buscar dados:", error);
                 document.getElementById('error-message').textContent = "Erro ao carregar os dados. Tente novamente.";
+                document.getElementById('error-message').style.display = 'block';
             });
         }
 
@@ -114,6 +135,7 @@
         async function handleAddAbsence(event) {
             event.preventDefault();
             document.getElementById('error-message').textContent = '';
+            document.getElementById('error-message').style.display = 'none';
 
             const userName = document.getElementById('name').value;
             const absenceDate = document.getElementById('date').value;
@@ -121,11 +143,13 @@
 
             if (!userName || !absenceDate || !proofLink) {
                 document.getElementById('error-message').textContent = "Por favor, preencha todos os campos obrigatórios.";
+                document.getElementById('error-message').style.display = 'block';
                 return;
             }
 
             if (!db || !userId) {
                 document.getElementById('error-message').textContent = "Erro no banco de dados. Tente recarregar a página.";
+                document.getElementById('error-message').style.display = 'block';
                 return;
             }
 
@@ -138,8 +162,9 @@
                     createdAt: serverTimestamp(),
                 };
 
-                const collectionPath = `artifacts/${__app_id}/users/${userId}/absences`;
-                await addDoc(collection(db, collectionPath), newAbsence);
+                // O caminho da coleção foi alterado para corresponder às novas regras de segurança
+                const absencesCollection = collection(db, `users/${userId}/absences`);
+                await addDoc(absencesCollection, newAbsence);
 
                 // Limpa o formulário
                 document.getElementById('name').value = '';
@@ -148,6 +173,7 @@
             } catch (error) {
                 console.error("Erro ao registrar a falta:", error);
                 document.getElementById('error-message').textContent = "Erro ao registrar a falta. Verifique sua conexão.";
+                document.getElementById('error-message').style.display = 'block';
             }
         }
 
@@ -166,78 +192,4 @@
         <!-- Cabeçalho -->
         <header class="text-center mb-8">
             <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
-                Sistema de Registro de Faltas
-            </h1>
-            <p class="text-sm text-gray-500">Seu ID de Usuário: <span id="user-id">Carregando...</span></p>
-        </header>
-
-        <!-- Mensagem de Atenção -->
-        <div class="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 rounded-lg shadow mb-6" role="alert">
-            <p class="font-semibold">Atenção:</p>
-            <p class="text-sm">Os valores acumulados serão utilizados para a compra de itens de consumo e melhorias voltadas aos treinos da academia.</p>
-        </div>
-
-        <!-- Box de Registro de Nova Falta -->
-        <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-6">
-            <h2 class="text-xl sm:text-2xl font-bold text-indigo-700 text-center mb-6">Registrar Nova Falta</h2>
-            
-            <div id="error-message" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded mb-4" role="alert" style="display: none;"></div>
-
-            <form id="add-absence-form" class="space-y-4">
-                <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
-                    <div class="flex-1">
-                        <label for="name" class="block text-gray-700 text-sm font-medium mb-1">Nome:</label>
-                        <input type="text" id="name" placeholder="Digite o nome" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
-                    </div>
-                    <div class="flex-1">
-                        <label for="date" class="block text-gray-700 text-sm font-medium mb-1">Data da Falta:</label>
-                        <input type="date" id="date" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" max="${new Date().toISOString().split('T')[0]}" required>
-                    </div>
-                </div>
-
-                <div>
-                    <label for="proofLink" class="block text-gray-700 text-sm font-medium mb-1">Link do Comprovante (Obrigatório):</label>
-                    <input type="text" id="proofLink" placeholder="Cole o link do comprovante (ex: foto no Google Drive)" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
-                </div>
-                
-                <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 transition duration-300">
-                    Registrar Falta (R$ 10,00)
-                </button>
-            </form>
-        </div>
-
-        <!-- Box de Total em Caixa -->
-        <div class="bg-green-100 p-6 sm:p-8 rounded-xl shadow-lg mb-6 text-center">
-            <h2 class="text-2xl font-bold text-green-700 mb-2">Total em Caixa:</h2>
-            <p class="text-4xl sm:text-5xl font-bold text-green-800">
-                R$ <span id="total-value">0,00</span>
-            </p>
-        </div>
-
-        <!-- Histórico de Faltas -->
-        <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-            <h2 class="text-2xl font-bold text-gray-700 text-center mb-6">Histórico de Faltas</h2>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full table-auto">
-                    <thead>
-                        <tr class="bg-gray-50 text-gray-600 text-left uppercase text-sm leading-normal">
-                            <th class="py-3 px-6 text-left">NOME</th>
-                            <th class="py-3 px-6 text-left">DATA DA FALTA</th>
-                            <th class="py-3 px-6 text-left">VALOR</th>
-                            <th class="py-3 px-6 text-left">COMPROVANTE</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-table-body" class="text-gray-600 text-sm font-light">
-                        <tr>
-                            <td colspan="4" class="py-6 text-center text-gray-500">Carregando histórico...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    </div>
-
-</body>
-</html>
+                Sistema de Registro de Fal
