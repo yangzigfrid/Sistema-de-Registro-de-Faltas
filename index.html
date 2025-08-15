@@ -13,17 +13,26 @@
         import { getFirestore, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Variáveis de ambiente
-        let firebaseConfig = {};
+        // ATENÇÃO: SUBSTITUA O OBJETO ABAIXO PELA SUA CONFIGURAÇÃO DO FIREBASE.
+        // Você pode encontrar essa informação no painel do Firebase, em:
+        // Configurações do projeto -> Suas apps -> Configuração -> "SDK de Configuração do Firebase"
+        let firebaseConfig = {
+              apiKey: "AIzaSyBPEKtr1KM96N3MQi1IKCOTIjVltQ3t_8s",
+              authDomain: "sistema-de-registro-de-faltas.firebaseapp.com",
+              projectId: "sistema-de-registro-de-faltas",
+              storageBucket: "sistema-de-registro-de-faltas.firebasestorage.app",
+              messagingSenderId: "959428862131",
+              appId: "1:959428862131:web:1435601cc3e46b5d0b10c6",
+        };
         let initialAuthToken = null;
         let appId = 'default-app-id';
 
         // Tentar carregar as variáveis do ambiente Canvas
         try {
-            firebaseConfig = JSON.parse(__firebase_config);
             initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             appId = typeof __app_id !== 'undefined' ? __app_id : appId;
         } catch (e) {
-            console.error("Erro ao carregar as variáveis de ambiente do Firebase:", e);
+            console.error("Erro ao carregar as variáveis de ambiente do Canvas:", e);
         }
         
         // Inicialização do Firebase
@@ -40,15 +49,12 @@
                 db = getFirestore(app);
                 
                 // Autenticação com token personalizado ou de forma anônima
+                // O ambiente Canvas pode injetar um token personalizado, mas para evitar
+                // o erro 'auth/custom-token-mismatch', vamos forçar a autenticação anônima.
                 async function authenticate() {
                     try {
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                            console.log("Autenticado com token personalizado.");
-                        } else {
-                            await signInAnonymously(auth);
-                            console.log("Autenticado anonimamente.");
-                        }
+                        await signInAnonymously(auth);
+                        console.log("Autenticado anonimamente.");
                     } catch (error) {
                         console.error("Erro na autenticação:", error);
                         document.getElementById('error-message').textContent = "Erro de autenticação. O sistema pode não funcionar.";
@@ -79,7 +85,7 @@
                 document.getElementById('error-message').style.display = 'block';
             }
         } else {
-             document.getElementById('error-message').textContent = "Erro: Configuração do Firebase não encontrada. Por favor, recarregue a página.";
+             document.getElementById('error-message').textContent = "Erro: A configuração do Firebase não foi definida. Por favor, adicione seu objeto de configuração ao código.";
              document.getElementById('error-message').style.display = 'block';
              console.error("Firebase não inicializado: firebaseConfig está vazio.");
         }
