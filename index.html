@@ -6,7 +6,7 @@
     <title>Registro de Faltas</title>
     <!-- Incluindo o Tailwind CSS para um design moderno e responsivo -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- CSS personalizado para a animação de pulsação -->
+    <!-- CSS personalizado para as animações e o efeito neon -->
     <style>
         @keyframes pulse-slow {
             0%, 100% {
@@ -19,6 +19,16 @@
             }
         }
         .animate-pulse-slow {
+            animation: pulse-slow 3s infinite ease-in-out;
+        }
+
+        /* Estilo para o título com efeito neon ciano vibrante */
+        .text-vivid-cyan {
+            background-image: linear-gradient(90deg, #00FFFF 0%, #00BFFF 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.8), 0 0 16px rgba(0, 255, 255, 0.4);
             animation: pulse-slow 3s infinite ease-in-out;
         }
     </style>
@@ -449,9 +459,9 @@
     <div class="w-full max-w-3xl p-4 sm:p-8">
 
         <!-- Cabeçalho -->
-        <header class="text-center mb-8 text-white">
-            <h1 class="text-3xl sm:text-4xl font-bold mb-2 animate-pulse-slow">
-                📊 Registro de Faltas
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold mb-2 text-vivid-cyan">
+                👎 Registro de Faltas 👎
             </h1>
         </header>
 
