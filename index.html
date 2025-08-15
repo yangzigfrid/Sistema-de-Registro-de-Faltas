@@ -12,16 +12,16 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // AQUI ESTÁ A CORREÇÃO: Usando um bloco try/catch para garantir que a aplicação não falhe se as
-        // variáveis de ambiente não estiverem disponíveis.
+        // Variáveis de ambiente
         let firebaseConfig = {};
         let initialAuthToken = null;
-        let appId = null;
+        let appId = 'default-app-id';
 
+        // Tentar carregar as variáveis do ambiente Canvas
         try {
             firebaseConfig = JSON.parse(__firebase_config);
             initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            appId = typeof __app_id !== 'undefined' ? __app_id : appId;
         } catch (e) {
             console.error("Erro ao carregar as variáveis de ambiente do Firebase:", e);
         }
@@ -61,7 +61,8 @@
                     if (user) {
                         userId = user.uid;
                         document.getElementById('user-id').textContent = userId;
-                        console.log("ID do usuário obtido:", userId);
+                        console.log("Usuário autenticado. ID:", userId);
+                        console.log("ID da Aplicação:", appId);
                         startDataListener();
                     } else {
                         document.getElementById('user-id').textContent = "Não autenticado";
@@ -101,7 +102,8 @@
                 return;
             }
             
-            const collectionPath = `users/${userId}/absences`;
+            // ATUALIZAÇÃO IMPORTANTE: Usando uma estrutura de dados mais segura
+            const collectionPath = `users/${userId}/data/${appId}/absences`;
             console.log("Tentando acessar a coleção:", collectionPath);
             const absencesRef = collection(db, collectionPath);
             const q = query(absencesRef);
@@ -126,7 +128,7 @@
             }, (error) => {
                 // O erro "Missing or insufficient permissions" acontece aqui
                 console.error("Erro ao buscar dados:", error);
-                document.getElementById('error-message').textContent = "Erro ao carregar os dados. Tente novamente.";
+                document.getElementById('error-message').textContent = "Erro ao carregar os dados. Verifique as regras de segurança do Firestore.";
                 document.getElementById('error-message').style.display = 'block';
             });
         }
@@ -196,8 +198,8 @@
                     createdAt: serverTimestamp(),
                 };
 
-                // Aqui o aplicativo tenta salvar os dados no Firestore.
-                const absencesCollection = collection(db, `users/${userId}/absences`);
+                // ATUALIZAÇÃO IMPORTANTE: Usando uma estrutura de dados mais segura
+                const absencesCollection = collection(db, `users/${userId}/data/${appId}/absences`);
                 await addDoc(absencesCollection, newAbsence);
                 console.log("Falta registrada com sucesso.");
 
