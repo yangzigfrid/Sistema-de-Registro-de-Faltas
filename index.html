@@ -138,11 +138,13 @@
                 history.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
 
                 history.forEach(item => {
+                    const valueDisplay = item.value === 0 ? 'Liberado' : `-R$ ${item.value.toFixed(2).replace('.', ',')}`;
+                    const valueClass = item.value === 0 ? 'text-green-400' : 'text-red-400';
                     const row = `
                         <tr class="border-b border-gray-700 hover:bg-gray-800">
                             <td class="py-3 px-6">${item.name}</td>
                             <td class="py-3 px-6">${formatDate(item.date)}</td>
-                            <td class="py-3 px-6 text-red-400 font-semibold">-R$ ${item.value.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-6 ${valueClass} font-semibold">${valueDisplay}</td>
                             <td class="py-3 px-6">
                                 <a href="${item.proofLink}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline">Ver</a>
                             </td>
@@ -168,6 +170,7 @@
             const userName = document.getElementById('name').value;
             const absenceDate = document.getElementById('date').value;
             const proofLink = document.getElementById('proofLink').value;
+            const absenceValue = parseFloat(document.getElementById('absence-value').value);
 
             if (!userName || !absenceDate || !proofLink) {
                 document.getElementById('error-message').textContent = "Por favor, preencha todos os campos obrigatórios.";
@@ -185,7 +188,7 @@
                 const newAbsence = {
                     name: userName,
                     date: absenceDate,
-                    value: 10,
+                    value: absenceValue,
                     proofLink: proofLink,
                     createdAt: serverTimestamp(),
                 };
@@ -197,6 +200,7 @@
                 document.getElementById('name').value = '';
                 document.getElementById('date').value = '';
                 document.getElementById('proofLink').value = '';
+                document.getElementById('absence-value').value = '10'; // Reset para o valor padrão
             } catch (error) {
                 console.error("Erro ao registrar a falta:", error);
                 document.getElementById('error-message').textContent = "Erro ao registrar a falta. Verifique sua conexão.";
@@ -336,8 +340,16 @@
                     <input type="text" id="proofLink" placeholder="Cole o link do comprovante (ex: foto no Google Drive)" class="w-full p-3 border border-gray-600 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                 </div>
                 
+                <div>
+                    <label for="absence-value" class="block text-gray-300 text-sm font-medium mb-1">Tipo de Falta:</label>
+                    <select id="absence-value" class="w-full p-3 border border-gray-600 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="10">Falta (R$ 10,00)</option>
+                        <option value="0">Liberado (Sem Custo)</option>
+                    </select>
+                </div>
+
                 <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 transition duration-300">
-                    Registrar Falta (R$ 10,00)
+                    Registrar
                 </button>
             </form>
         </div>
