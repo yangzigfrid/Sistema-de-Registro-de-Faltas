@@ -84,7 +84,7 @@
             }
         } else {
              document.getElementById('error-message').textContent = "Erro: A configuração do Firebase não foi definida ou a chave API é inválida. Por favor, adicione seu objeto de configuração ao código.";
-             document.getElementById('error-message').style.display = 'block';
+             document.getElementById('error-message').style.style.display = 'block';
              console.error("Firebase não inicializado: firebaseConfig está vazio.");
         }
 
@@ -161,10 +161,12 @@
                     const valueDisplay = item.value === 0 ? 'Liberado' : `-R$ ${item.value.toFixed(2).replace('.', ',')}`;
                     const valueClass = item.value === 0 ? 'text-green-400' : 'text-red-400';
                     
-                    // Exibe a miniatura da imagem se ela existir
-                    const proofHtml = item.proofLink ? 
-                        `<a href="${item.proofLink}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline">Ver Link</a>` :
-                        `<img src="${item.proofImage}" alt="Comprovante" class="w-20 h-20 object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300 cursor-pointer">`;
+                    // Exibe a miniatura da imagem se ela existir e a torna clicável para abrir o modal
+                    const proofHtml = item.proofImage ? 
+                        `<div class="cursor-pointer" onclick="showImageModal('${item.proofImage}')">
+                            <img src="${item.proofImage}" alt="Comprovante" class="w-20 h-20 object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                        </div>` :
+                        `<div class="text-gray-400">N/A</div>`;
                         
                     const row = `
                         <tr class="border-b border-gray-700 hover:bg-gray-800">
@@ -211,6 +213,20 @@
                 `;
             }
         }
+        
+        // Função para mostrar o modal de imagem
+        function showImageModal(imageSrc) {
+            const modal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            modalImage.src = imageSrc;
+            modal.style.display = 'flex';
+        }
+
+        // Função para esconder o modal de imagem
+        function hideImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.style.display = 'none';
+        }
 
         // Função para adicionar uma nova falta
         async function handleAddAbsence(event) {
@@ -222,7 +238,7 @@
             const absenceDate = document.getElementById('date').value;
             const absenceValue = parseFloat(document.getElementById('absence-value').value);
 
-            if (!userName || !absenceDate || (!proofImageBase64)) {
+            if (!userName || !absenceDate || !proofImageBase64) {
                 document.getElementById('error-message').textContent = "Por favor, preencha todos os campos e adicione um comprovante.";
                 document.getElementById('error-message').style.display = 'block';
                 return;
@@ -367,14 +383,24 @@
             if (imageInput) {
                 imageInput.addEventListener('change', handleImageUpload);
             }
+            
+            // Adiciona o listener para fechar o modal de imagem
+            document.getElementById('image-modal').addEventListener('click', hideImageModal);
         });
     </script>
 </head>
 <!-- A URL da imagem de fundo foi atualizada para o link do GitHub fornecido. -->
 <body class="font-sans flex items-center justify-center relative bg-black text-white" style="background-image: url('https://raw.githubusercontent.com/yangzigfrid/Sistema-de-Registro-de-Faltas/main/No%20Pain%20No%20Gain%20Wallpaper%20-%20iXpap.jpg'); background-size: cover; background-position: center; background-attachment: fixed; min-height: 100vh;">
 
+    <!-- Modal de Visualização da Imagem -->
+    <div id="image-modal" class="fixed inset-0 bg-gray-900 bg-opacity-90 overflow-y-auto h-full w-full flex items-center justify-center z-50" style="display: none;">
+        <div class="relative max-w-4xl p-8">
+            <img id="modal-image" src="" alt="Comprovante de Falta" class="max-h-[80vh] w-auto mx-auto rounded-lg shadow-xl">
+        </div>
+    </div>
+
     <!-- Modal de Confirmação para Apagar Histórico -->
-    <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none;">
+    <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center z-40" style="display: none;">
         <div class="bg-gray-800 bg-opacity-90 text-white p-6 rounded-lg shadow-xl w-80">
             <h3 class="text-xl font-bold mb-4">Confirmar Ação</h3>
             <p class="text-gray-300 mb-4">Tem certeza que deseja apagar todo o histórico de faltas? Digite a senha para confirmar.</p>
