@@ -40,6 +40,10 @@
         // O `appId` garante que a coleção seja única para este ambiente.
         const PUBLIC_COLLECTION_PATH = `artifacts/${appId}/public/data/absences`;
 
+        // Variável para armazenar a imagem em Base64 temporariamente
+        let proofImageBase64 = null;
+        const MAX_FILE_SIZE_MB = 1; // 1 MB
+
         // Verifica se a configuração foi fornecida
         if (Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey !== "") {
             try {
@@ -156,13 +160,19 @@
                 history.forEach(item => {
                     const valueDisplay = item.value === 0 ? 'Liberado' : `-R$ ${item.value.toFixed(2).replace('.', ',')}`;
                     const valueClass = item.value === 0 ? 'text-green-400' : 'text-red-400';
+                    
+                    // Exibe a miniatura da imagem se ela existir
+                    const proofHtml = item.proofLink ? 
+                        `<a href="${item.proofLink}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline">Ver Link</a>` :
+                        `<img src="${item.proofImage}" alt="Comprovante" class="w-20 h-20 object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300 cursor-pointer">`;
+                        
                     const row = `
                         <tr class="border-b border-gray-700 hover:bg-gray-800">
                             <td class="py-3 px-6">${item.name}</td>
                             <td class="py-3 px-6">${formatDate(item.date)}</td>
                             <td class="py-3 px-6 ${valueClass} font-semibold">${valueDisplay}</td>
                             <td class="py-3 px-6">
-                                <a href="${item.proofLink}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline">Ver</a>
+                                ${proofHtml}
                             </td>
                         </tr>
                     `;
@@ -210,11 +220,10 @@
 
             const userName = document.getElementById('name').value;
             const absenceDate = document.getElementById('date').value;
-            const proofLink = document.getElementById('proofLink').value;
             const absenceValue = parseFloat(document.getElementById('absence-value').value);
 
-            if (!userName || !absenceDate || !proofLink) {
-                document.getElementById('error-message').textContent = "Por favor, preencha todos os campos obrigatórios.";
+            if (!userName || !absenceDate || (!proofImageBase64)) {
+                document.getElementById('error-message').textContent = "Por favor, preencha todos os campos e adicione um comprovante.";
                 document.getElementById('error-message').style.display = 'block';
                 return;
             }
@@ -230,7 +239,7 @@
                     name: userName,
                     date: absenceDate,
                     value: absenceValue,
-                    proofLink: proofLink,
+                    proofImage: proofImageBase64,
                     createdAt: serverTimestamp(),
                 };
 
@@ -241,7 +250,9 @@
 
                 document.getElementById('name').value = 'Adan'; // Reset para o valor padrão
                 document.getElementById('date').value = '';
-                document.getElementById('proofLink').value = '';
+                document.getElementById('image-input').value = ''; // Limpa o campo de arquivo
+                document.getElementById('image-preview').style.display = 'none'; // Esconde a pré-visualização
+                proofImageBase64 = null; // Limpa a variável Base64
                 document.getElementById('absence-value').value = '10'; // Reset para o valor padrão
             } catch (error) {
                 console.error("Erro ao registrar a falta:", error);
@@ -306,6 +317,39 @@
             document.getElementById('confirmation-modal').style.display = 'none';
         }
 
+        // Função para pré-visualizar a imagem e convertê-la para Base64
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('image-preview');
+            const errorElement = document.getElementById('error-message');
+
+            if (!file) {
+                preview.style.display = 'none';
+                proofImageBase64 = null;
+                return;
+            }
+
+            // Verifica o tamanho do arquivo
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                errorElement.textContent = `O arquivo é muito grande. O limite é de ${MAX_FILE_SIZE_MB}MB.`;
+                errorElement.style.display = 'block';
+                preview.style.display = 'none';
+                event.target.value = null; // Limpa o campo de arquivo
+                proofImageBase64 = null;
+                return;
+            }
+            
+            errorElement.style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                proofImageBase64 = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('add-absence-form');
             if (form) {
@@ -317,6 +361,12 @@
             }
             document.getElementById('confirm-yes').addEventListener('click', confirmClearHistory);
             document.getElementById('confirm-no').addEventListener('click', hideConfirmationModal);
+            
+            // Adiciona o listener para o novo campo de upload de imagem
+            const imageInput = document.getElementById('image-input');
+            if (imageInput) {
+                imageInput.addEventListener('change', handleImageUpload);
+            }
         });
     </script>
 </head>
@@ -382,8 +432,9 @@
                 </div>
 
                 <div>
-                    <label for="proofLink" class="block text-gray-300 text-sm font-medium mb-1">Link do Comprovante (Obrigatório):</label>
-                    <input type="text" id="proofLink" placeholder="Cole o link do comprovante (ex: foto no Google Drive)" class="w-full p-3 border border-gray-600 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    <label for="image-input" class="block text-gray-300 text-sm font-medium mb-1">Comprovante (Imagem, JPG ou PNG):</label>
+                    <input type="file" id="image-input" accept="image/jpeg, image/png" class="w-full text-gray-300 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600" required>
+                    <img id="image-preview" src="#" alt="Pré-visualização da imagem" class="mt-4 hidden w-32 h-32 object-cover rounded-lg">
                 </div>
                 
                 <div>
