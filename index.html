@@ -10,12 +10,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, onSnapshot, collection, query, addDoc, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Variáveis de ambiente
-        // ATENÇÃO: SUBSTITUA O OBJETO ABAIXO PELA SUA CONFIGURAÇÃO DO FIREBASE.
-        // Você pode encontrar essa informação no painel do Firebase, em:
-        // Configurações do projeto -> Suas apps -> Configuração -> "SDK de Configuração do Firebase"
         let firebaseConfig = {
               apiKey: "AIzaSyBPEKtr1KM96N3MQi1IKCOTIjVltQ3t_8s",
               authDomain: "sistema-de-registro-de-faltas.firebaseapp.com",
@@ -27,7 +24,6 @@
         let initialAuthToken = null;
         let appId = 'default-app-id';
 
-        // Tentar carregar as variáveis do ambiente Canvas
         try {
             initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             appId = typeof __app_id !== 'undefined' ? __app_id : appId;
@@ -35,12 +31,15 @@
             console.error("Erro ao carregar as variáveis de ambiente do Canvas:", e);
         }
         
-        // Inicialização do Firebase
         let app = null;
         let auth = null;
         let db = null;
         let userId = null;
         let unsubscribe = null;
+        
+        // Senha de administração hardcoded para demonstração
+        // Em uma aplicação real, esta senha deve ser validada no backend.
+        const ADMIN_PASSWORD = "335176++";
 
         if (Object.keys(firebaseConfig).length > 0) {
             try {
@@ -48,9 +47,6 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
                 
-                // Autenticação com token personalizado ou de forma anônima
-                // O ambiente Canvas pode injetar um token personalizado, mas para evitar
-                // o erro 'auth/custom-token-mismatch', vamos forçar a autenticação anônima.
                 async function authenticate() {
                     try {
                         await signInAnonymously(auth);
@@ -62,7 +58,6 @@
                     }
                 }
 
-                // Monitora o estado de autenticação
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
@@ -76,7 +71,6 @@
                     }
                 });
 
-                // Chama a função de autenticação
                 authenticate();
 
             } catch (e) {
@@ -89,7 +83,6 @@
              document.getElementById('error-message').style.display = 'block';
              console.error("Firebase não inicializado: firebaseConfig está vazio.");
         }
-
 
         // Função para converter data
         function formatDate(dateStr) {
@@ -108,15 +101,11 @@
                 return;
             }
             
-            // ATUALIZAÇÃO IMPORTANTE: Usando uma estrutura de dados mais segura
             const collectionPath = `users/${userId}/data/${appId}/absences`;
             console.log("Tentando acessar a coleção:", collectionPath);
             const absencesRef = collection(db, collectionPath);
             const q = query(absencesRef);
 
-            // Este é o principal "ouvinte" de dados. Ele se conecta ao Firebase e é executado
-            // toda vez que os dados são alterados, adicionados ou removidos.
-            // Se este trecho de código falhar, a soma e o histórico não serão atualizados.
             unsubscribe = onSnapshot(q, (snapshot) => {
                 console.log("Dados recebidos com sucesso.");
                 let currentTotal = 0;
@@ -132,7 +121,6 @@
                 });
                 updateUI(currentTotal, newHistory);
             }, (error) => {
-                // O erro "Missing or insufficient permissions" acontece aqui
                 console.error("Erro ao buscar dados:", error);
                 document.getElementById('error-message').textContent = "Erro ao carregar os dados. Verifique as regras de segurança do Firestore.";
                 document.getElementById('error-message').style.display = 'block';
@@ -141,14 +129,12 @@
 
         // Função para atualizar a interface
         function updateUI(total, history) {
-            // Esta função atualiza o total na tela
             document.getElementById('total-value').textContent = total.toFixed(2).replace('.', ',');
             
             const historyTableBody = document.getElementById('history-table-body');
             historyTableBody.innerHTML = '';
             
             if (history.length > 0) {
-                // Ordenar por data de criação decrescente
                 history.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
 
                 history.forEach(item => {
@@ -204,21 +190,74 @@
                     createdAt: serverTimestamp(),
                 };
 
-                // ATUALIZAÇÃO IMPORTANTE: Usando uma estrutura de dados mais segura
                 const absencesCollection = collection(db, `users/${userId}/data/${appId}/absences`);
                 await addDoc(absencesCollection, newAbsence);
                 console.log("Falta registrada com sucesso.");
 
-                // Limpa o formulário
                 document.getElementById('name').value = '';
                 document.getElementById('date').value = '';
                 document.getElementById('proofLink').value = '';
             } catch (error) {
-                // Se a regra de segurança não permitir a escrita, este erro será exibido
                 console.error("Erro ao registrar a falta:", error);
                 document.getElementById('error-message').textContent = "Erro ao registrar a falta. Verifique sua conexão.";
                 document.getElementById('error-message').style.display = 'block';
             }
+        }
+
+        // Função para apagar o histórico de faltas
+        async function handleClearHistory() {
+            // Mostra o modal de confirmação e limpa campos
+            showConfirmationModal();
+        }
+
+        async function confirmClearHistory() {
+            const enteredPassword = document.getElementById('password-input').value;
+            const passwordError = document.getElementById('password-error');
+
+            if (enteredPassword !== ADMIN_PASSWORD) {
+                passwordError.textContent = "Senha incorreta.";
+                passwordError.style.display = 'block';
+                return;
+            }
+            
+            passwordError.textContent = "";
+            passwordError.style.display = 'none';
+            hideConfirmationModal();
+
+            if (!db || !userId) {
+                document.getElementById('error-message').textContent = "Erro no banco de dados. Tente recarregar a página.";
+                document.getElementById('error-message').style.display = 'block';
+                return;
+            }
+
+            try {
+                const collectionPath = `users/${userId}/data/${appId}/absences`;
+                const absencesRef = collection(db, collectionPath);
+                const querySnapshot = await getDocs(absencesRef);
+                
+                const deletePromises = [];
+                querySnapshot.forEach((doc) => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                await Promise.all(deletePromises);
+                console.log("Histórico de faltas apagado com sucesso.");
+            } catch (error) {
+                console.error("Erro ao apagar o histórico:", error);
+                document.getElementById('error-message').textContent = "Erro ao apagar o histórico. Verifique sua conexão.";
+                document.getElementById('error-message').style.display = 'block';
+            }
+        }
+        
+        // Funções para mostrar/esconder o modal
+        function showConfirmationModal() {
+            document.getElementById('confirmation-modal').style.display = 'flex';
+            document.getElementById('password-input').value = '';
+            document.getElementById('password-error').style.display = 'none';
+        }
+
+        function hideConfirmationModal() {
+            document.getElementById('confirmation-modal').style.display = 'none';
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -226,10 +265,36 @@
             if (form) {
                 form.addEventListener('submit', handleAddAbsence);
             }
+            const clearButton = document.getElementById('clear-history-button');
+            if (clearButton) {
+                clearButton.addEventListener('click', handleClearHistory);
+            }
+            document.getElementById('confirm-yes').addEventListener('click', confirmClearHistory);
+            document.getElementById('confirm-no').addEventListener('click', hideConfirmationModal);
         });
     </script>
 </head>
-<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen">
+<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen relative">
+
+    <!-- Modal de Confirmação para Apagar Histórico -->
+    <div id="confirmation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none;">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-80">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Confirmar Ação</h3>
+            <p class="text-gray-600 mb-4">Tem certeza que deseja apagar todo o histórico de faltas? Digite a senha para confirmar.</p>
+            
+            <div class="mb-4">
+                <label for="password-input" class="block text-gray-700 text-sm font-medium mb-1">Senha:</label>
+                <input type="password" id="password-input" placeholder="Digite a senha" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                <div id="password-error" class="text-red-500 text-sm mt-2" style="display: none;"></div>
+            </div>
+
+            <div class="flex justify-end space-x-4">
+                <button id="confirm-no" class="px-4 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
+                <button id="confirm-yes" class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-300">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
 
     <div class="w-full max-w-3xl p-4 sm:p-8">
 
@@ -286,7 +351,12 @@
 
         <!-- Histórico de Faltas -->
         <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-            <h2 class="text-2xl font-bold text-gray-700 text-center mb-6">Histórico de Faltas</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl sm:text-2xl font-bold text-gray-700">Histórico de Faltas</h2>
+                <button id="clear-history-button" class="bg-red-500 text-white text-sm font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition duration-300">
+                    Apagar Histórico
+                </button>
+            </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full table-auto">
