@@ -84,7 +84,7 @@
             }
         } else {
              document.getElementById('error-message').textContent = "Erro: A configuração do Firebase não foi definida ou a chave API é inválida. Por favor, adicione seu objeto de configuração ao código.";
-             document.getElementById('error-message').style.style.display = 'block';
+             document.getElementById('error-message').style.display = 'block';
              console.error("Firebase não inicializado: firebaseConfig está vazio.");
         }
 
@@ -161,9 +161,9 @@
                     const valueDisplay = item.value === 0 ? 'Liberado' : `-R$ ${item.value.toFixed(2).replace('.', ',')}`;
                     const valueClass = item.value === 0 ? 'text-green-400' : 'text-red-400';
                     
-                    // Exibe a miniatura da imagem se ela existir e a torna clicável para abrir o modal
+                    // Adicionando um data-attribute para o caminho da imagem em vez de um onclick inline
                     const proofHtml = item.proofImage ? 
-                        `<div class="cursor-pointer" onclick="showImageModal('${item.proofImage}')">
+                        `<div class="cursor-pointer image-thumbnail" data-image-src="${item.proofImage}">
                             <img src="${item.proofImage}" alt="Comprovante" class="w-20 h-20 object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
                         </div>` :
                         `<div class="text-gray-400">N/A</div>`;
@@ -386,6 +386,17 @@
             
             // Adiciona o listener para fechar o modal de imagem
             document.getElementById('image-modal').addEventListener('click', hideImageModal);
+
+            // NOVO: Listener de evento para abrir o modal da imagem
+            document.getElementById('history-table-body').addEventListener('click', (event) => {
+                const clickedElement = event.target.closest('.image-thumbnail');
+                if (clickedElement) {
+                    const imageSrc = clickedElement.getAttribute('data-image-src');
+                    if (imageSrc) {
+                        showImageModal(imageSrc);
+                    }
+                }
+            });
         });
     </script>
 </head>
